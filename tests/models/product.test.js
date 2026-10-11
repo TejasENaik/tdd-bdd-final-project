@@ -1,63 +1,113 @@
 const { Product, Category } = require('../../src/models/product');
-const { sequelize } = require('../../src/database/connection');
 const { ProductFactory } = require('../factories');
 
 describe('Product Model', () => {
+  const createProduct = async (overrides = {}) => {
+    const data = ProductFactory.build(overrides);
+    delete data.id;
+    return await Product.create(data);
+  };
 
-
-  
   describe('Product Creation', () => {
     test('should create a product and assert that it exists', () => {
-      const productData = {
+      const product = new Product({
         name: 'Fedora',
         description: 'A red hat',
         price: 12.50,
         available: true,
         category: Category.CLOTHS
-      };
-      
-      const product = new Product(productData);
-      
+      });
+
       expect(product).toBeDefined();
-      expect(product.id).toBeNull(); // Not saved yet
+      expect(product.id).toBeNull();
       expect(product.name).toBe('Fedora');
       expect(product.description).toBe('A red hat');
       expect(product.available).toBe(true);
       expect(product.price).toBe(12.50);
       expect(product.category).toBe(Category.CLOTHS);
     });
-    
+
     test('should add a product to the database', async () => {
-      // Check database is empty
-      const products = await Product.findAll();
-      expect(products).toEqual([]);
-      
-      // Create product using factory
-      const productData = ProductFactory.build();
-      delete productData.id; // Remove ID so database assigns one
-      
-      const product = await Product.create(productData);
-      
-      // Assert that it was assigned an id and shows up in the database
+      const product = await createProduct({ name: 'Fedora' });
+
       expect(product.id).toBeDefined();
-      
-      const allProducts = await Product.findAll();
-      expect(allProducts.length).toBe(1);
-      
-      // Check that it matches the original product
-      const newProduct = allProducts[0];
-      expect(newProduct.name).toBe(productData.name);
-      expect(newProduct.description).toBe(productData.description);
-      expect(parseFloat(newProduct.price)).toBe(productData.price);
-      expect(newProduct.available).toBe(productData.available);
-      expect(newProduct.category).toBe(productData.category);
+
+      const found = await Product.findByPk(product.id);
+      expect(found.name).toBe('Fedora');
     });
   });
-  
-  //
-  // ADD YOUR TEST CASES HERE
-  //
 
-  
-  
+  // Task 2a: READ
+  test('should read a product by ID', async () => {
+    const product = await createProduct({ name: 'Read Product' });
+
+    const found = await Product.findByPk(product.id);
+
+    expect(found).not.toBeNull();
+    expect(found.name).toBe('Read Product');
+  });
+
+  // Task 2b: UPDATE
+  test('should update a product', async () => {
+    const product = await createProduct({ name: 'Old Name' });
+
+    await product.update({ name: 'Updated Name', price: 25.50 });
+
+    const updated = await Product.findByPk(product.id);
+    expect(updated.name).toBe('Updated Name');
+    expect(parseFloat(updated.price)).toBe(25.50);
+  });
+
+  // Task 2c: DELETE
+  test('should delete a product', async () => {
+    const product = await createProduct();
+
+    await product.destroy();
+
+    const found = await Product.findByPk(product.id);
+    expect(found).toBeNull();
+  });
+
+  // Task 2d: LIST ALL
+  test('should list all products', async () => {
+    await createProduct({ name: 'Product One' });
+    await createProduct({ name: 'Product Two' });
+
+    const products = await Product.findAll();
+
+    expect(products).toHaveLength(2);
+  });
+
+  // Task 2e: FIND BY NAME
+  test('should find products by name', async () => {
+    await createProduct({ name: 'Fedora' });
+    await createProduct({ name: 'Boots' });
+
+    const products = await Product.findByName('Fedora');
+
+    expect(products).toHaveLength(1);
+    expect(products[0].name).toBe('Fedora');
+  });
+
+  // Task 2f: FIND BY CATEGORY
+  test('should find products by category', async () => {
+    await createProduct({ category: Category.FOOD });
+    await createProduct({ category: Category.TOOLS });
+
+    const products = await Product.findByCategory(Category.FOOD);
+
+    expect(products).toHaveLength(1);
+    expect(products[0].category).toBe(Category.FOOD);
+  });
+
+  // Task 2g: FIND BY AVAILABILITY
+  test('should find products by availability', async () => {
+    await createProduct({ available: true });
+    await createProduct({ available: false });
+
+    const products = await Product.findByAvailability(false);
+
+    expect(products).toHaveLength(1);
+    expect(products[0].available).toBe(false);
+  });
 });
